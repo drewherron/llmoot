@@ -5,6 +5,7 @@ llmoot - Multi-LLM Roundtable Discussion Tool
 
 import argparse
 import sys
+from src.config import Config
 
 
 def parse_arguments():
@@ -71,10 +72,37 @@ def main():
 
         # Validate order
         order = validate_order(args.order)
+        
+        # Load configuration
+        try:
+            config = Config()
+        except ValueError as e:
+            print(f"Configuration error: {e}", file=sys.stderr)
+            return 1
 
         print(f"llmoot - Multi-LLM Roundtable Discussion Tool")
         print(f"Prompt: {args.prompt}")
         print(f"Order: {order} (quality level {args.quality})")
+        
+        # Check API key availability
+        provider_status = config.validate_providers(order)
+        missing_keys = [code for code, available in provider_status.items() if not available]
+        
+        if missing_keys:
+            provider_names = {'c': 'Claude (Anthropic)', 'g': 'Gemini (Google)', 'o': 'OpenAI'}
+            missing_names = [provider_names[code] for code in missing_keys]
+            print(f"Error: Missing API keys for: {', '.join(missing_names)}", file=sys.stderr)
+            print("Set environment variables or create config.yaml from config.yaml.template", file=sys.stderr)
+            return 1
+        
+        # Show selected models
+        provider_map = {'c': 'claude', 'g': 'gemini', 'o': 'openai'}
+        models = []
+        for code in order:
+            provider = provider_map[code]
+            model = config.get_model(provider, args.quality)
+            models.append(f"{code}={model}")
+        print(f"Models: {' -> '.join(models)}")
 
         # TODO: actual LLM processing
         print("Processing not yet implemented...")

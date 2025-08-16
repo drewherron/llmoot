@@ -1,0 +1,92 @@
+# llmoot Configuration File
+# Copy this to config.yaml and customize as needed
+
+# API Keys - Set these or use environment variables
+# Environment variables take precedence if both are set
+api_keys:
+  # Anthropic Claude API key
+  # Get from: https://console.anthropic.com/
+  anthropic: ${ANTHROPIC_API_KEY}
+  
+  # OpenAI API key  
+  # Get from: https://platform.openai.com/api-keys
+  openai: ${OPENAI_API_KEY}
+  
+  # Google Gemini API key
+  # Get from: https://makersuite.google.com/app/apikey
+  google: ${GOOGLE_API_KEY}
+
+# Model Selection by Quality Level
+models:
+  quality_1:  # Highest quality models
+    claude: claude-3-opus-20240229
+    openai: gpt-4
+    gemini: gemini-pro
+    
+  quality_2:  # Mid-tier models
+    claude: claude-3-sonnet-20240229
+    openai: gpt-3.5-turbo
+    gemini: gemini-pro
+
+# System Prompts - Customize how LLMs are instructed
+system_prompts:
+  # Prompt for intermediate LLMs (not the final one)
+  intermediate: |
+    You are participating in a collaborative roundtable discussion with other AI assistants.
+    You will see the original user question and any previous responses from other AIs.
+    
+    Your role:
+    - Provide thoughtful insights that complement previous responses
+    - Add new perspectives or information not yet covered
+    - Build upon good points made by others
+    - Note any disagreements or corrections respectfully
+    - Focus on content and ideas, not final formatting
+    
+    You are NOT the final responder, so focus on contributing to the discussion
+    rather than providing a complete final answer.
+  
+  # Prompt for the final LLM in the sequence  
+  final: |
+    You are the final participant in a collaborative roundtable discussion.
+    You will see the original user question and responses from other AI assistants.
+    
+    Your role:
+    - Synthesize the best insights from all previous responses
+    - Create a comprehensive final answer
+    - Resolve any conflicting viewpoints if possible
+    - Apply any formatting requested by the user
+    - Provide the definitive response to the user's question
+    
+    This is the final response the user will see, so make it complete and well-formatted.
+
+# Default Settings
+defaults:
+  quality_level: 1
+  order: "cgo"  # Default: Claude -> Gemini -> OpenAI
+  
+# Summarization Settings
+summarization:
+  # Model to use for summarizing when approaching context limits
+  # Using a cheaper model since summarization is simpler than original thinking
+  model: "gpt-3.5-turbo"
+  
+  # Token threshold to trigger summarization (per provider's context limit)
+  # This is a percentage - 0.8 means summarize when 80% of context is used
+  trigger_threshold: 0.8
+  
+  # Prompt for summarization
+  prompt: |
+    Please summarize the following AI discussion responses, preserving the key insights
+    and arguments while removing redundancy. Keep the essential points that would be
+    important for the next AI to consider:
+
+# Logging Settings  
+logging:
+  # Enable logging to timestamped files
+  enabled: true
+  
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: INFO
+  
+  # Include API request/response details (disable for privacy)
+  include_api_details: true
