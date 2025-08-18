@@ -8,6 +8,7 @@ import os
 import sys
 from src.config import Config
 from src.mock_responses import DEV_MODE, get_mock_client
+from src.provider_registry import registry
 
 
 def parse_arguments():
@@ -172,13 +173,10 @@ def main():
         
         # Check API key availability (skip in dev mode)
         if not DEV_MODE:
-            provider_status = config.validate_providers(order)
-            missing_keys = [code for code, available in provider_status.items() if not available]
+            missing_providers = registry.get_missing_providers(order, config)
             
-            if missing_keys:
-                provider_names = {'c': 'Claude (Anthropic)', 'g': 'Gemini (Google)', 'o': 'OpenAI'}
-                missing_names = [provider_names[code] for code in missing_keys]
-                print(f"Error: Missing API keys for: {', '.join(missing_names)}", file=sys.stderr)
+            if missing_providers:
+                print(f"Error: Missing API keys for: {', '.join(missing_providers)}", file=sys.stderr)
                 print("Set environment variables or create config.yaml from config.yaml.template", file=sys.stderr)
                 return 1
         
