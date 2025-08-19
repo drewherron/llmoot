@@ -62,7 +62,7 @@ system_prompts:
 # Default Settings
 defaults:
   quality_level: 1
-  order: "cgo"  # Default: Claude -> Gemini -> OpenAI
+  order: "aog"  # Default: Anthropic -> OpenAI -> Google
   
 # Summarization Settings
 summarization:

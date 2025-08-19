@@ -18,14 +18,14 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  llmoot.py -o cgo "What is the meaning of life?"
-  llmoot.py -o cgoc --quality 2 "Explain quantum computing"
-  llmoot.py -o cgo prompt.txt
+  llmoot.py -o aog "What is the meaning of life?"
+  llmoot.py -o agoa --quality 2 "Explain quantum computing"
+  llmoot.py -o aog prompt.txt
 
 Order codes:
-  c = Claude
-  g = Gemini
-  o = OpenAI/ChatGPT
+  a = Anthropic (Claude)
+  o = OpenAI (ChatGPT)
+  g = Google (Gemini)
         """
     )
 
@@ -37,7 +37,7 @@ Order codes:
     parser.add_argument(
         "-o", "--order",
         required=True,
-        help="Order of LLM execution (e.g., 'cgo' for Claude->Gemini->OpenAI)"
+        help="Order of LLM execution (e.g., 'aog' for Anthropic->OpenAI->Google)"
     )
 
     parser.add_argument(
@@ -59,13 +59,13 @@ Order codes:
 
 def validate_order(order):
     """Validate the order string contains only valid provider codes."""
-    valid_codes = {'c', 'g', 'o'}
+    valid_codes = {'a', 'o', 'g'}
     if not order:
         raise ValueError("Order cannot be empty")
 
     for code in order.lower():
         if code not in valid_codes:
-            raise ValueError(f"Invalid provider code '{code}'. Valid codes: c, g, o")
+            raise ValueError(f"Invalid provider code '{code}'. Valid codes: a, o, g")
 
     return order.lower()
 
@@ -102,7 +102,7 @@ def load_prompt(prompt_arg):
 
 def run_mock_discussion(order, prompt, config, quality_level):
     """Run a mock roundtable discussion for development/testing."""
-    provider_map = {'c': 'claude', 'g': 'gemini', 'o': 'openai'}
+    provider_map = {'a': 'claude', 'g': 'gemini', 'o': 'openai'}
     responses = []
     
     for i, code in enumerate(order):
@@ -115,7 +115,7 @@ def run_mock_discussion(order, prompt, config, quality_level):
         
         # Show progress
         status = "Final response" if is_final else f"Response {i+1}/{len(order)}"
-        print(f"🤖 {provider.title()} ({model}) - {status}...")
+        print(f"{provider.title()} ({model}) - {status}...")
         
         # Build context from previous responses
         context = f"User prompt: {prompt}\n\n"
@@ -135,7 +135,7 @@ def run_mock_discussion(order, prompt, config, quality_level):
         print()
     
     print("=" * 60)
-    print("🎉 Mock roundtable discussion complete!")
+    print("Mock roundtable discussion complete!")
     print(f"Total responses: {len(responses)}")
     total_tokens = sum(r['tokens_used'] for r in responses)
     total_time = sum(r['response_time'] for r in responses)
@@ -162,7 +162,7 @@ def main():
 
         print(f"llmoot - Multi-LLM Roundtable Discussion Tool")
         if DEV_MODE:
-            print("⚠️  Running in DEVELOPMENT MODE with mock responses")
+            print("WARNING: Running in DEVELOPMENT MODE with mock responses")
         
         # Show prompt source
         if os.path.isfile(args.prompt):
@@ -181,7 +181,7 @@ def main():
                 return 1
         
         # Show selected models
-        provider_map = {'c': 'claude', 'g': 'gemini', 'o': 'openai'}
+        provider_map = {'a': 'claude', 'o': 'openai', 'g': 'gemini'}
         models = []
         for code in order:
             provider = provider_map[code]

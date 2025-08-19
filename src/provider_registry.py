@@ -55,7 +55,7 @@ class ProviderRegistry:
         """Create a client instance for the given provider.
         
         Args:
-            provider_code: Provider code (c, g, o)
+            provider_code: Provider code (a, o, g)
             config: Configuration object
             quality_level: Quality level (1 or 2)
             
@@ -66,7 +66,7 @@ class ProviderRegistry:
             ValueError: If provider not registered or missing API key
         """
         # Map provider codes to names
-        provider_map = {'c': 'claude', 'g': 'gemini', 'o': 'openai'}
+        provider_map = {'a': 'claude', 'o': 'openai', 'g': 'gemini'}
         provider_name = provider_map.get(provider_code)
         
         if not provider_name or provider_name not in self._provider_info:
@@ -95,14 +95,14 @@ class ProviderRegistry:
         """Validate that all providers in order have available API keys.
         
         Args:
-            order: Order string like 'cgo'
+            order: Order string like 'aog'
             config: Configuration object
             
         Returns:
             Dict mapping provider codes to availability status
         """
         results = {}
-        provider_map = {'c': 'claude', 'g': 'gemini', 'o': 'openai'}
+        provider_map = {'a': 'claude', 'o': 'openai', 'g': 'gemini'}
         
         for code in order:
             provider_name = provider_map.get(code)
@@ -119,7 +119,7 @@ class ProviderRegistry:
         """Get list of missing provider names for error messages.
         
         Args:
-            order: Order string like 'cgo'
+            order: Order string like 'aog'
             config: Configuration object
             
         Returns:
@@ -127,7 +127,7 @@ class ProviderRegistry:
         """
         provider_status = self.validate_providers(order, config)
         provider_names = self.get_provider_names()
-        provider_map = {'c': 'claude', 'g': 'gemini', 'o': 'openai'}
+        provider_map = {'a': 'claude', 'o': 'openai', 'g': 'gemini'}
         
         missing = []
         for code, available in provider_status.items():
