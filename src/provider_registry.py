@@ -141,3 +141,14 @@ class ProviderRegistry:
 
 # Global registry instance
 registry = ProviderRegistry()
+
+# Register Claude client
+def _register_claude():
+    """Register Claude client when available."""
+    try:
+        from src.claude_client import ClaudeClient
+        registry.register_provider('claude', ClaudeClient)
+    except ImportError:
+        pass
+
+_register_claude()
