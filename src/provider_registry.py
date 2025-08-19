@@ -160,5 +160,15 @@ def _register_openai():
     except ImportError:
         pass
 
+# Register Gemini client
+def _register_gemini():
+    """Register Gemini client when available."""
+    try:
+        from src.gemini_client import GeminiClient
+        registry.register_provider('gemini', GeminiClient)
+    except ImportError:
+        pass
+
 _register_claude()
 _register_openai()
+_register_gemini()
