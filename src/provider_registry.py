@@ -151,4 +151,14 @@ def _register_claude():
     except ImportError:
         pass
 
+# Register OpenAI client
+def _register_openai():
+    """Register OpenAI client when available."""
+    try:
+        from src.openai_client import OpenAIClient
+        registry.register_provider('openai', OpenAIClient)
+    except ImportError:
+        pass
+
 _register_claude()
+_register_openai()
