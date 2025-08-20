@@ -17,16 +17,27 @@ api_keys:
   google: ${GOOGLE_API_KEY}
 
 # Model Selection by Quality Level
+# These settings override the built-in model catalog
+# If not specified, the system will use intelligent defaults
 models:
   quality_1:  # Highest quality models
-    claude: claude-3-opus-20240229
-    openai: gpt-4
-    gemini: gemini-pro
+    claude: claude-3-opus-20240229     # Most capable Claude model
+    openai: gpt-4                      # Most capable OpenAI model  
+    gemini: gemini-pro                 # Google's most capable model
     
-  quality_2:  # Mid-tier models
-    claude: claude-3-sonnet-20240229
-    openai: gpt-3.5-turbo
-    gemini: gemini-pro
+  quality_2:  # Mid-tier models (faster, more cost-effective)
+    claude: claude-3-sonnet-20240229   # Balanced Claude model
+    openai: gpt-3.5-turbo              # Fast and cost-effective
+    gemini: gemini-pro                 # Same model, different usage pattern
+
+# Alternative models available (uncomment to override defaults):
+# models:
+#   quality_1:
+#     claude: claude-3-sonnet-20240229  # Use Sonnet instead of Opus for quality 1
+#     openai: gpt-4-turbo-preview       # Use Turbo for larger context window
+#   quality_2:
+#     claude: claude-3-haiku-20240307   # Use Haiku for faster responses
+#     openai: gpt-3.5-turbo-16k         # Use 16k version for larger context
 
 # System Prompts - Customize how LLMs are instructed
 system_prompts:

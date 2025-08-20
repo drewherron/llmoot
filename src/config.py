@@ -110,7 +110,14 @@ class Config:
             Model name
         """
         quality_key = f'quality_{quality_level}'
-        return self._config['models'][quality_key][provider]
+        
+        # Try to get from config first
+        try:
+            return self._config['models'][quality_key][provider]
+        except KeyError:
+            # Fallback to model manager if not in config
+            from src.model_manager import model_manager
+            return model_manager.get_model(provider, quality_level)
     
     def get_system_prompt(self, is_final: bool) -> str:
         """Get system prompt for LLM.
