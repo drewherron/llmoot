@@ -9,6 +9,7 @@ import sys
 from src.config import Config
 from src.mock_responses import DEV_MODE, get_mock_client
 from src.provider_registry import registry
+from src.order_parser import order_parser
 
 
 def parse_arguments():
@@ -58,16 +59,14 @@ Order codes:
 
 
 def validate_order(order):
-    """Validate the order string contains only valid provider codes."""
-    valid_codes = {'a', 'o', 'g'}
-    if not order:
-        raise ValueError("Order cannot be empty")
-
-    for code in order.lower():
-        if code not in valid_codes:
-            raise ValueError(f"Invalid provider code '{code}'. Valid codes: a, o, g")
-
-    return order.lower()
+    """Validate the order string and return normalized version."""
+    try:
+        # Use the enhanced order parser for validation
+        order_parser.validate_order(order)
+        return order.lower().strip()
+    except ValueError:
+        # Re-raise with our error for consistency
+        raise
 
 
 def load_prompt(prompt_arg):
@@ -102,19 +101,19 @@ def load_prompt(prompt_arg):
 
 def run_mock_discussion(order, prompt, config, quality_level):
     """Run a mock roundtable discussion for development/testing."""
-    provider_map = {'a': 'claude', 'g': 'gemini', 'o': 'openai'}
+    # Parse order into execution steps
+    steps = order_parser.parse_order(order)
     responses = []
     
-    for i, code in enumerate(order):
-        provider = provider_map[code]
+    for step in steps:
+        provider = step.provider_name
         model = config.get_model(provider, quality_level)
-        is_final = (i == len(order) - 1)
         
         # Create mock client
         client = get_mock_client(provider, model)
         
         # Show progress
-        status = "Final response" if is_final else f"Response {i+1}/{len(order)}"
+        status = "Final response" if step.is_final else f"Response {step.step_number}/{step.total_steps}"
         print(f"{provider.title()} ({model}) - {status}...")
         
         # Build context from previous responses
@@ -125,7 +124,7 @@ def run_mock_discussion(order, prompt, config, quality_level):
                 context += f"\n{resp['provider'].title()} response:\n{resp['content']}\n"
         
         # Generate response
-        response = client.generate_response(context, is_final)
+        response = client.generate_response(context, step.is_final)
         responses.append(response)
         
         # Show the response
@@ -169,7 +168,15 @@ def main():
             print(f"Prompt file: {args.prompt}")
         else:
             print(f"Prompt: {prompt}")
+        
+        # Show detailed order information
+        order_analysis = order_parser.analyze_order(order)
         print(f"Order: {order} (quality level {args.quality})")
+        print(f"Execution: {order_analysis['execution_summary']}")
+        if order_analysis['has_duplicates']:
+            counts = order_analysis['provider_counts']
+            duplicates = [f"{code}×{count}" for code, count in counts.items() if count > 1]
+            print(f"Note: Duplicate providers - {', '.join(duplicates)}")
         
         # Check API key availability (skip in dev mode)
         if not DEV_MODE:
