@@ -11,6 +11,7 @@ from src.mock_responses import DEV_MODE, get_mock_client
 from src.provider_registry import registry
 from src.order_parser import order_parser
 from src.prompt_builder import PromptBuilder
+from src.discussion_orchestrator import DiscussionOrchestrator
 
 
 def parse_arguments():
@@ -222,15 +223,28 @@ def main():
         print(f"Models: {' -> '.join(models)}")
         print()
         
-        # Run mock processing in dev mode
+        # Run discussion (mock or real based on DEV_MODE)
         if DEV_MODE:
             print("Starting mock roundtable discussion...")
             if args.attribution:
                 print("Attribution mode: ON - model names will be included in context")
             run_mock_discussion(order, prompt, config, args.quality, args.attribution)
         else:
-            # TODO: actual LLM processing
-            print("Real LLM processing not yet implemented...")
+            print("Starting roundtable discussion...")
+            orchestrator = DiscussionOrchestrator(config)
+            result = orchestrator.run_discussion(prompt, order, args.quality, args.attribution)
+            
+            if result.success:
+                print()
+                print("=" * 60)
+                print("FINAL RESPONSE")
+                print("=" * 60)
+                print(result.final_response)
+                print()
+                print(f"Discussion completed with {len(result.responses)} responses")
+            else:
+                print(f"Discussion failed: {result.error_message}")
+                return 1
 
         return 0
 
