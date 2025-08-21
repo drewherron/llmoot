@@ -1,6 +1,7 @@
 """Configuration management for llmoot."""
 
 import os
+import re
 import yaml
 from typing import Dict, Any, Optional
 
@@ -39,8 +40,6 @@ class Config:
     
     def _substitute_env_vars(self, content: str) -> str:
         """Replace ${ENV_VAR} placeholders with environment variable values."""
-        import re
-        
         def replace_env_var(match):
             env_var = match.group(1)
             return os.environ.get(env_var, match.group(0))  # Keep placeholder if env var not found
@@ -168,21 +167,3 @@ final answer. Apply any formatting requested by the user."""
         
         return value
     
-    def validate_providers(self, order: str) -> Dict[str, bool]:
-        """Validate that API keys are available for providers in order.
-        
-        Args:
-            order: Order string like 'cgo'
-            
-        Returns:
-            Dict mapping provider codes to availability status
-        """
-        provider_map = {'c': 'anthropic', 'g': 'google', 'o': 'openai'}
-        results = {}
-        
-        for code in order:
-            provider = provider_map[code]
-            api_key = self.get_api_key(provider)
-            results[code] = api_key is not None
-        
-        return results

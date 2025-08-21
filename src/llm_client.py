@@ -143,34 +143,6 @@ class LLMClient(ABC):
                 error=str(e)
             )
     
-    def validate_request(self, request: LLMRequest) -> None:
-        """Validate a request before sending.
-        
-        Args:
-            request: Request to validate
-            
-        Raises:
-            ValueError: If request is invalid
-        """
-        if not request.prompt.strip():
-            raise ValueError("Prompt cannot be empty")
-        
-        if not request.system_prompt.strip():
-            raise ValueError("System prompt cannot be empty")
-        
-        # Provider-specific validation can be overridden
-        self._validate_request_specific(request)
-    
     def _validate_request_specific(self, request: LLMRequest) -> None:
         """Provider-specific request validation. Override in subclasses."""
         pass
-    
-    def get_context_limit(self) -> int:
-        """Get the context limit for this model. Override in subclasses."""
-        # Default conservative limit
-        return 4000
-    
-    def estimate_tokens(self, text: str) -> int:
-        """Rough token estimation. Override in subclasses for accuracy."""
-        # Very rough estimate: ~4 characters per token
-        return len(text) // 4

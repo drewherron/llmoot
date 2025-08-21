@@ -1,6 +1,6 @@
 """Order parsing and validation utilities."""
 
-from typing import List, Dict, Tuple
+from typing import List, Dict
 from dataclasses import dataclass
 
 
