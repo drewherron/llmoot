@@ -11,7 +11,9 @@ from src.mock_responses import DEV_MODE, get_mock_client
 from src.provider_registry import registry
 from src.order_parser import order_parser
 from src.prompt_builder import PromptBuilder
-from src.discussion_orchestrator import DiscussionOrchestrator
+from src.discussion_orchestrator import DiscussionOrchestrator, DiscussionResult
+from src.response_formatter import ResponseFormatter, OutputFormat
+from src.llm_client import LLMResponse
 
 
 def parse_arguments():
@@ -55,6 +57,24 @@ Order codes:
         "--attribution",
         action="store_true",
         help="Include model names in context and enable attribution in final response"
+    )
+
+    parser.add_argument(
+        "--format",
+        choices=["plain", "markdown", "json", "structured"],
+        default="plain",
+        help="Output format (default: plain)"
+    )
+
+    parser.add_argument(
+        "--show-steps",
+        action="store_true",
+        help="Show all intermediate responses, not just final result"
+    )
+
+    parser.add_argument(
+        "--export",
+        help="Export results to specified file (format inferred from extension)"
     )
 
     parser.add_argument(
@@ -107,11 +127,13 @@ def load_prompt(prompt_arg):
     return prompt_arg.strip()
 
 
-def run_mock_discussion(order, prompt, config, quality_level, attribution=False):
-    """Run a mock roundtable discussion for development/testing."""
+
+def run_mock_discussion_with_result(order, prompt, config, quality_level, attribution=False):
+    """Run a mock roundtable discussion and return DiscussionResult object."""
     # Parse order into execution steps
     steps = order_parser.parse_order(order)
     responses = []
+    llm_responses = []
     prompt_builder = PromptBuilder(config)
     
     for step in steps:
@@ -148,24 +170,35 @@ def run_mock_discussion(order, prompt, config, quality_level, attribution=False)
         user_prompt = prompt_builder.build_user_prompt(prompt, response_contexts, step_info, attribution)
         
         # Generate response (mock client still uses simple context)
-        # In real implementation, this would use the enhanced prompts
         context = f"System: {system_prompt}\n\nUser: {user_prompt}"
         response = client.generate_response(context, step.is_final)
         responses.append(response)
         
+        # Create LLMResponse object for compatibility with formatter
+        llm_response = LLMResponse(
+            content=response['content'],
+            model=response['model'],
+            provider=response['provider'],
+            tokens_used=response.get('tokens_used', 0),
+            response_time=response.get('response_time', 0.0),
+            is_final=response.get('is_final', False),
+            raw_response={'mock': True}
+        )
+        llm_responses.append(llm_response)
+        
         # Show the response
-        print(f"\n--- {provider.title()} Response ---")
-        print(response['content'])
-        print(f"({response['tokens_used']} tokens, {response['response_time']:.1f}s)")
-        print()
+        print(f"  Response received ({len(response['content'])} chars)")
     
-    print("=" * 60)
-    print("Mock roundtable discussion complete!")
-    print(f"Total responses: {len(responses)}")
-    total_tokens = sum(r['tokens_used'] for r in responses)
-    total_time = sum(r['response_time'] for r in responses)
-    print(f"Total tokens: {total_tokens}")
-    print(f"Total time: {total_time:.1f}s")
+    print()
+    print("Mock discussion processing complete!")
+    
+    # Return DiscussionResult object
+    return DiscussionResult(
+        final_response=responses[-1]['content'] if responses else "",
+        responses=llm_responses,
+        execution_steps=steps,
+        success=True
+    )
 
 
 def main():
@@ -228,20 +261,74 @@ def main():
             print("Starting mock roundtable discussion...")
             if args.attribution:
                 print("Attribution mode: ON - model names will be included in context")
-            run_mock_discussion(order, prompt, config, args.quality, args.attribution)
+            
+            # Create a mock result that can be formatted
+            mock_result = run_mock_discussion_with_result(order, prompt, config, args.quality, args.attribution)
+            
+            # Format and display results using the same logic as production
+            formatter = ResponseFormatter()
+            output_format = OutputFormat(args.format)
+            
+            if mock_result.success:
+                formatted_result = formatter.format_discussion_result(
+                    mock_result, 
+                    format_type=output_format,
+                    include_metadata=True,
+                    include_intermediate=args.show_steps
+                )
+                
+                print()
+                print(formatted_result.content)
+                
+                # Export if requested
+                if args.export:
+                    success = formatter.export_to_file(formatted_result, args.export)
+                    if success:
+                        print(f"\nResults exported to: {args.export}")
+                    else:
+                        print(f"\nFailed to export to: {args.export}")
+                        return 1
+                
+                # Show summary unless in JSON format
+                if output_format != OutputFormat.JSON:
+                    print()
+                    print("-" * 60)
+                    print(formatter.generate_summary(mock_result))
         else:
             print("Starting roundtable discussion...")
             orchestrator = DiscussionOrchestrator(config)
             result = orchestrator.run_discussion(prompt, order, args.quality, args.attribution)
             
+            # Format and display results
+            formatter = ResponseFormatter()
+            output_format = OutputFormat(args.format)
+            
             if result.success:
+                # Format the result
+                formatted_result = formatter.format_discussion_result(
+                    result, 
+                    format_type=output_format,
+                    include_metadata=True,
+                    include_intermediate=args.show_steps
+                )
+                
                 print()
-                print("=" * 60)
-                print("FINAL RESPONSE")
-                print("=" * 60)
-                print(result.final_response)
-                print()
-                print(f"Discussion completed with {len(result.responses)} responses")
+                print(formatted_result.content)
+                
+                # Export if requested
+                if args.export:
+                    success = formatter.export_to_file(formatted_result, args.export)
+                    if success:
+                        print(f"\nResults exported to: {args.export}")
+                    else:
+                        print(f"\nFailed to export to: {args.export}")
+                        return 1
+                
+                # Show summary unless in JSON format
+                if output_format != OutputFormat.JSON:
+                    print()
+                    print("-" * 60)
+                    print(formatter.generate_summary(result))
             else:
                 print(f"Discussion failed: {result.error_message}")
                 return 1
