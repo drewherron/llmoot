@@ -10,6 +10,7 @@ from src.config import Config
 from src.mock_responses import DEV_MODE, get_mock_client
 from src.provider_registry import registry
 from src.order_parser import order_parser
+from src.prompt_builder import PromptBuilder
 
 
 def parse_arguments():
@@ -47,6 +48,12 @@ Order codes:
         choices=[1, 2],
         default=1,
         help="Quality level: 1=highest models, 2=mid-tier models (default: 1)"
+    )
+
+    parser.add_argument(
+        "--attribution",
+        action="store_true",
+        help="Include model names in context and enable attribution in final response"
     )
 
     parser.add_argument(
@@ -99,11 +106,12 @@ def load_prompt(prompt_arg):
     return prompt_arg.strip()
 
 
-def run_mock_discussion(order, prompt, config, quality_level):
+def run_mock_discussion(order, prompt, config, quality_level, attribution=False):
     """Run a mock roundtable discussion for development/testing."""
     # Parse order into execution steps
     steps = order_parser.parse_order(order)
     responses = []
+    prompt_builder = PromptBuilder(config)
     
     for step in steps:
         provider = step.provider_name
@@ -116,14 +124,31 @@ def run_mock_discussion(order, prompt, config, quality_level):
         status = "Final response" if step.is_final else f"Response {step.step_number}/{step.total_steps}"
         print(f"{provider.title()} ({model}) - {status}...")
         
-        # Build context from previous responses
-        context = f"User prompt: {prompt}\n\n"
-        if responses:
-            context += "Previous responses:\n"
-            for j, resp in enumerate(responses):
-                context += f"\n{resp['provider'].title()} response:\n{resp['content']}\n"
+        # Build enhanced context using prompt builder
+        step_info = {
+            'step_number': step.step_number,
+            'total_steps': step.total_steps,
+            'is_final': step.is_final
+        }
         
-        # Generate response
+        # Convert previous responses to context format
+        response_contexts = []
+        for resp in responses:
+            response_contexts.append(type('ResponseContext', (), {
+                'provider': resp['provider'],
+                'model': resp.get('model', 'unknown'),
+                'content': resp['content'],
+                'step_number': len(response_contexts) + 1,
+                'tokens_used': resp.get('tokens_used', 0)
+            })())
+        
+        # Build system and user prompts
+        system_prompt = prompt_builder.build_system_prompt(step.is_final, prompt, step_info, attribution)
+        user_prompt = prompt_builder.build_user_prompt(prompt, response_contexts, step_info, attribution)
+        
+        # Generate response (mock client still uses simple context)
+        # In real implementation, this would use the enhanced prompts
+        context = f"System: {system_prompt}\n\nUser: {user_prompt}"
         response = client.generate_response(context, step.is_final)
         responses.append(response)
         
@@ -200,7 +225,9 @@ def main():
         # Run mock processing in dev mode
         if DEV_MODE:
             print("Starting mock roundtable discussion...")
-            run_mock_discussion(order, prompt, config, args.quality)
+            if args.attribution:
+                print("Attribution mode: ON - model names will be included in context")
+            run_mock_discussion(order, prompt, config, args.quality, args.attribution)
         else:
             # TODO: actual LLM processing
             print("Real LLM processing not yet implemented...")
