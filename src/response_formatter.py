@@ -87,6 +87,9 @@ class ResponseFormatter:
         
         if not result.success:
             lines.append(f"Discussion failed: {result.error_message}")
+            if result.error_summary:
+                lines.append("")
+                lines.append(result.error_summary)
             return "\n".join(lines)
         
         if include_intermediate and result.responses:
@@ -138,6 +141,14 @@ class ResponseFormatter:
                 if hasattr(final_response, 'response_time') and final_response.response_time:
                     lines.append(f"Time: {final_response.response_time:.2f}s")
                 lines.append(f"Total steps: {len(result.execution_steps)}")
+        
+        # Add error summary if there were any errors during discussion
+        if result.error_summary and result.partial_success:
+            lines.append("")
+            lines.append("-" * 40)
+            lines.append("ERRORS ENCOUNTERED")
+            lines.append("-" * 40)
+            lines.append(result.error_summary)
         
         return "\n".join(lines)
     
