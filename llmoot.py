@@ -78,6 +78,12 @@ Order codes:
     )
 
     parser.add_argument(
+        "--console-logging",
+        action="store_true",
+        help="Enable logging to console in addition to files"
+    )
+
+    parser.add_argument(
         "--version",
         action="version",
         version="llmoot 0.1.0"
@@ -296,7 +302,24 @@ def main():
                     print(formatter.generate_summary(mock_result))
         else:
             print("Starting roundtable discussion...")
-            orchestrator = DiscussionOrchestrator(config)
+            
+            # Configure logging from config file
+            from src.logging_system import logging_manager
+            logging_enabled = config.is_logging_enabled()
+            log_directory = config.get_log_directory()
+            
+            if logging_enabled:
+                logging_manager.configure(
+                    log_dir=log_directory,
+                    enable_console=args.console_logging
+                )
+            
+            # Create orchestrator with logging settings
+            orchestrator = DiscussionOrchestrator(
+                config, 
+                enable_logging=logging_enabled,
+                enable_console_logging=args.console_logging
+            )
             result = orchestrator.run_discussion(prompt, order, args.quality, args.attribution)
             
             # Format and display results
@@ -324,6 +347,13 @@ def main():
                         print(f"\nFailed to export to: {args.export}")
                         return 1
                 
+                # Show log information
+                if logging_enabled and hasattr(orchestrator, 'discussion_logger') and orchestrator.discussion_logger:
+                    log_summary = orchestrator.discussion_logger.get_log_summary()
+                    print(f"\nLogs saved to: {log_summary['log_file']}")
+                    if log_summary['structured_log']:
+                        print(f"Structured log: {log_summary['structured_log']}")
+                
                 # Show summary unless in JSON format
                 if output_format != OutputFormat.JSON:
                     print()
@@ -331,6 +361,12 @@ def main():
                     print(formatter.generate_summary(result))
             else:
                 print(f"Discussion failed: {result.error_message}")
+                
+                # Show log information even for failures
+                if logging_enabled and hasattr(orchestrator, 'discussion_logger') and orchestrator.discussion_logger:
+                    log_summary = orchestrator.discussion_logger.get_log_summary()
+                    print(f"Logs saved to: {log_summary['log_file']}")
+                
                 return 1
 
         return 0

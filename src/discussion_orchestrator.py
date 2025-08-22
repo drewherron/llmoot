@@ -9,6 +9,7 @@ from .prompt_builder import PromptBuilder, ResponseContext
 from .config import Config
 from .error_handler import ErrorRecovery, ErrorReporter, ErrorContext, error_handling_context
 from .model_manager import model_manager
+from .logging_system import logging_manager, DiscussionLogger
 
 
 @dataclass
@@ -26,14 +27,21 @@ class DiscussionResult:
 class DiscussionOrchestrator:
     """Orchestrates multi-LLM roundtable discussions."""
     
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, enable_logging: bool = True, enable_console_logging: bool = False):
         self.config = config
         self.provider_registry = ProviderRegistry()
         self.prompt_builder = PromptBuilder(config)
         self.error_recovery = ErrorRecovery(config, model_manager)
         self.error_reporter = ErrorReporter()
         
-        # Setup logging
+        # Setup discussion logging
+        self.enable_logging = enable_logging
+        self.discussion_logger: Optional[DiscussionLogger] = None
+        
+        if enable_logging:
+            logging_manager.configure(enable_console=enable_console_logging)
+        
+        # Setup basic Python logging
         logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
         
     def run_discussion(self, prompt: str, order: str, quality_level: int = 3, 
@@ -54,6 +62,13 @@ class DiscussionOrchestrator:
             # Parse execution order
             execution_steps = order_parser.parse_order(order)
             print(f"Discussion order: {' -> '.join(step.provider_name for step in execution_steps)}")
+            
+            # Initialize logging for this discussion
+            if self.enable_logging:
+                self.discussion_logger = logging_manager.start_discussion_logging()
+                self.discussion_logger.log_discussion_start(
+                    prompt, order, quality_level, execution_steps, attribution
+                )
             
             if attribution:
                 print("Attribution mode: ON")
@@ -92,6 +107,10 @@ class DiscussionOrchestrator:
                     max_tokens=2000
                 )
                 
+                # Log the request
+                if self.discussion_logger:
+                    self.discussion_logger.log_request(i, step.provider_name, model, request, step)
+                
                 # Attempt to get response with error handling
                 response = self._execute_step_with_recovery(
                     step, request, i, len(execution_steps), quality_level
@@ -110,6 +129,10 @@ class DiscussionOrchestrator:
                     )
                 
                 responses.append(response)
+                
+                # Log the response
+                if self.discussion_logger:
+                    self.discussion_logger.log_response(i, step.provider_name, response)
                 
                 # Add to context for next iterations (even if it's a placeholder)
                 response_contexts.append(ResponseContext(
@@ -137,6 +160,15 @@ class DiscussionOrchestrator:
                 print(f"\nDiscussion completed successfully!")
                 print(f"Final response from {execution_steps[-1].provider_name.title()}: {len(final_response)} characters")
             
+            # Log discussion completion
+            if self.discussion_logger:
+                self.discussion_logger.log_discussion_end(
+                    success=True,
+                    final_response=final_response,
+                    total_responses=len(responses),
+                    partial_success=has_errors
+                )
+            
             return DiscussionResult(
                 final_response=final_response,
                 responses=responses,
@@ -150,6 +182,16 @@ class DiscussionOrchestrator:
             error_msg = f"Failed to run discussion: {e}"
             print(error_msg)
             error_summary = self.error_reporter.generate_error_summary()
+            
+            # Log discussion failure
+            if self.discussion_logger:
+                self.discussion_logger.log_discussion_end(
+                    success=False,
+                    final_response="",
+                    total_responses=0,
+                    error_message=error_msg
+                )
+            
             return DiscussionResult(
                 final_response="",
                 responses=[],
@@ -188,6 +230,13 @@ class DiscussionOrchestrator:
                 return response
                 
             except Exception as e:
+                # Log the error
+                if self.discussion_logger:
+                    self.discussion_logger.log_error(
+                        step_number, step.provider_name, e,
+                        recovery_attempted=True
+                    )
+                
                 # Use error recovery system
                 def client_factory(provider_name):
                     return self.provider_registry.create_client(provider_name, self.config, quality_level)

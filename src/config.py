@@ -68,7 +68,13 @@ class Config:
         if 'defaults' not in self._config:
             self._config['defaults'] = {
                 'quality_level': 1,
-                'order': 'cgo'
+                'order': 'aog'
+            }
+        
+        if 'logging' not in self._config:
+            self._config['logging'] = {
+                'enabled': True,
+                'directory': 'logs'
             }
     
     def get_api_key(self, provider: str) -> Optional[str]:
@@ -166,4 +172,12 @@ final answer. Apply any formatting requested by the user."""
                 return default
         
         return value
+    
+    def is_logging_enabled(self) -> bool:
+        """Check if logging is enabled."""
+        return self.get('logging.enabled', True)
+    
+    def get_log_directory(self) -> str:
+        """Get the log directory path."""
+        return self.get('logging.directory', 'logs')
     

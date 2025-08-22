@@ -5,7 +5,7 @@ import random
 from typing import Dict, Any
 
 # Development mode toggle - set to False for production
-DEV_MODE = False
+DEV_MODE = True
 
 # Mock response delays (in seconds) to simulate API calls
 MOCK_DELAYS = {

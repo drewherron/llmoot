@@ -75,6 +75,18 @@ defaults:
   quality_level: 1
   order: "aog"  # Default: Anthropic -> OpenAI -> Google
   
+# Logging Settings
+logging:
+  # Enable/disable logging to files
+  enabled: true
+  
+  # Directory where log files will be stored
+  # Relative paths are relative to the llmoot working directory
+  directory: "logs"
+  
+  # Console logging is still controlled by --console-logging CLI flag
+  # as it's typically used for debugging/development
+  
 # Summarization Settings
 summarization:
   # Model to use for summarizing when approaching context limits
