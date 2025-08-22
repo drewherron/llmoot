@@ -10,6 +10,7 @@ from .config import Config
 from .error_handler import ErrorRecovery, ErrorReporter, ErrorContext, error_handling_context
 from .model_manager import model_manager
 from .logging_system import logging_manager, DiscussionLogger
+from .context_monitor import ContextMonitor, ContextWarningLevel
 
 
 @dataclass
@@ -22,6 +23,7 @@ class DiscussionResult:
     error_message: Optional[str] = None
     error_summary: Optional[str] = None
     partial_success: bool = False
+    context_usage_summary: Optional[Dict[str, Any]] = None
 
 
 class DiscussionOrchestrator:
@@ -33,6 +35,7 @@ class DiscussionOrchestrator:
         self.prompt_builder = PromptBuilder(config)
         self.error_recovery = ErrorRecovery(config, model_manager)
         self.error_reporter = ErrorReporter()
+        self.context_monitor = ContextMonitor()
         
         # Setup discussion logging
         self.enable_logging = enable_logging
@@ -107,6 +110,18 @@ class DiscussionOrchestrator:
                     max_tokens=2000
                 )
                 
+                # Check context usage before request
+                can_proceed, usage_info, warning_msg = self.context_monitor.check_context_before_request(
+                    step.provider_name, model, request
+                )
+                
+                # Display context warnings
+                if warning_msg:
+                    if usage_info.warning_level == ContextWarningLevel.CRITICAL:
+                        print(f"  ⚠️ {warning_msg}")
+                    elif usage_info.warning_level == ContextWarningLevel.WARNING:
+                        print(f"  ⚠️ {warning_msg}")
+                
                 # Log the request
                 if self.discussion_logger:
                     self.discussion_logger.log_request(i, step.provider_name, model, request, step)
@@ -130,6 +145,11 @@ class DiscussionOrchestrator:
                 
                 responses.append(response)
                 
+                # Update context monitoring
+                updated_usage = self.context_monitor.update_context_usage(
+                    step.provider_name, model, request, response
+                )
+                
                 # Log the response
                 if self.discussion_logger:
                     self.discussion_logger.log_response(i, step.provider_name, response)
@@ -147,6 +167,10 @@ class DiscussionOrchestrator:
                     print(f"  Response received with recovery ({len(response.content)} chars)")
                 else:
                     print(f"  Response received ({len(response.content)} chars)")
+                
+                # Show context usage info
+                if updated_usage.warning_level != ContextWarningLevel.SAFE:
+                    print(f"  Context usage: {updated_usage.percentage_used:.1f}% ({updated_usage.current_usage:,}/{updated_usage.context_limit:,} tokens)")
             
             # Return successful result
             final_response = responses[-1].content if responses else ""
@@ -169,13 +193,23 @@ class DiscussionOrchestrator:
                     partial_success=has_errors
                 )
             
+            # Show context usage summary if any warnings occurred
+            context_summary = self.context_monitor.get_usage_summary()
+            if context_summary['warnings']:
+                print(f"\nContext Usage Summary:")
+                print(f"  Total conversation tokens: {context_summary['total_conversation_tokens']:,}")
+                for warning in context_summary['warnings']:
+                    level_symbol = "🔴" if warning['level'] == 'critical' else "🟡"
+                    print(f"  {level_symbol} {warning['message']}")
+            
             return DiscussionResult(
                 final_response=final_response,
                 responses=responses,
                 execution_steps=execution_steps,
                 success=True,
                 error_summary=error_summary if has_errors else None,
-                partial_success=has_errors
+                partial_success=has_errors,
+                context_usage_summary=context_summary
             )
             
         except Exception as e:

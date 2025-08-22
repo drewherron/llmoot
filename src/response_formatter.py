@@ -150,6 +150,17 @@ class ResponseFormatter:
             lines.append("-" * 40)
             lines.append(result.error_summary)
         
+        # Add context usage summary if available
+        if result.context_usage_summary and result.context_usage_summary.get('warnings'):
+            lines.append("")
+            lines.append("-" * 40)
+            lines.append("CONTEXT USAGE")
+            lines.append("-" * 40)
+            lines.append(f"Total conversation tokens: {result.context_usage_summary['total_conversation_tokens']:,}")
+            for warning in result.context_usage_summary['warnings']:
+                level_symbol = "!" if warning['level'] == 'critical' else "*"
+                lines.append(f"{level_symbol} {warning['message']}")
+        
         return "\n".join(lines)
     
     def _format_markdown(self, result: DiscussionResult, include_metadata: bool,
@@ -256,6 +267,10 @@ class ResponseFormatter:
                 'total_tokens': sum(getattr(r, 'tokens_used', 0) for r in result.responses),
                 'total_time': sum(getattr(r, 'response_time', 0) for r in result.responses)
             }
+        
+        # Add context usage summary to JSON output
+        if result.context_usage_summary:
+            data['context_usage'] = result.context_usage_summary
         
         return json.dumps(data, indent=2, ensure_ascii=False)
     
