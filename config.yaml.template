@@ -73,7 +73,6 @@ system_prompts:
 # Default Settings
 defaults:
   quality_level: 1
-  order: "aog"  # Default: Anthropic -> OpenAI -> Google
   
 # Logging Settings
 logging:

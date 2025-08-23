@@ -67,8 +67,7 @@ class Config:
         
         if 'defaults' not in self._config:
             self._config['defaults'] = {
-                'quality_level': 1,
-                'order': 'aog'
+                'quality_level': 1
             }
         
         if 'logging' not in self._config:
