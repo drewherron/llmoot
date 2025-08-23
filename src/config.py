@@ -56,12 +56,12 @@ class Config:
                 'quality_1': {
                     'claude': 'claude-3-opus-20240229',
                     'openai': 'gpt-4',
-                    'gemini': 'gemini-pro'
+                    'gemini': 'gemini-2.5-pro'
                 },
                 'quality_2': {
                     'claude': 'claude-3-sonnet-20240229', 
                     'openai': 'gpt-3.5-turbo',
-                    'gemini': 'gemini-pro'
+                    'gemini': 'gemini-2.5-pro'
                 }
             }
         

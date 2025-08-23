@@ -37,15 +37,33 @@ class ProviderRegistry:
                 }
             }
         }
+        self._register_providers()
+
+    def _register_providers(self):
+        """Register all available provider clients."""
+        try:
+            from src.claude_client import ClaudeClient
+            self.register_provider('claude', ClaudeClient)
+        except ImportError:
+            pass
+
+        try:
+            from src.openai_client import OpenAIClient
+            self.register_provider('openai', OpenAIClient)
+        except ImportError:
+            pass
+
+        from src.gemini_client import GeminiClient
+        self.register_provider('gemini', GeminiClient)
     
-    def register_provider(self, provider_code: str, client_class: Type[LLMClient]):
+    def register_provider(self, provider_name: str, client_class: Type[LLMClient]):
         """Register a new provider client.
         
         Args:
-            provider_code: Single letter code (c, g, o, etc.)
+            provider_name: The name of the provider (e.g., 'claude', 'openai')
             client_class: LLMClient subclass
         """
-        self._providers[provider_code] = client_class
+        self._providers[provider_name] = client_class
     
     def get_provider_names(self) -> Dict[str, str]:
         """Get mapping of provider codes to human-readable names."""
@@ -142,33 +160,3 @@ class ProviderRegistry:
 # Global registry instance
 registry = ProviderRegistry()
 
-# Register Claude client
-def _register_claude():
-    """Register Claude client when available."""
-    try:
-        from src.claude_client import ClaudeClient
-        registry.register_provider('claude', ClaudeClient)
-    except ImportError:
-        pass
-
-# Register OpenAI client
-def _register_openai():
-    """Register OpenAI client when available."""
-    try:
-        from src.openai_client import OpenAIClient
-        registry.register_provider('openai', OpenAIClient)
-    except ImportError:
-        pass
-
-# Register Gemini client
-def _register_gemini():
-    """Register Gemini client when available."""
-    try:
-        from src.gemini_client import GeminiClient
-        registry.register_provider('gemini', GeminiClient)
-    except ImportError:
-        pass
-
-_register_claude()
-_register_openai()
-_register_gemini()

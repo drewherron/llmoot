@@ -120,8 +120,8 @@ class DiscussionOrchestrator:
                 if should_summarize and len(response_contexts) >= self.context_manager.min_responses_to_summarize:
                     print(f"  🔄 Context approaching limits, summarizing previous responses...")
                     
-                    def client_factory(provider_name):
-                        return self.provider_registry.create_client(provider_name, self.config, quality_level)
+                    def client_factory(provider_code):
+                        return self.provider_registry.create_client(provider_code, self.config, quality_level)
                     
                     # Perform summarization
                     updated_contexts, summary_result = self.context_manager.summarize_conversation_context(
@@ -298,7 +298,7 @@ class DiscussionOrchestrator:
             
             try:
                 # Get the appropriate client
-                client = self.provider_registry.create_client(step.provider_name, self.config, quality_level)
+                client = self.provider_registry.create_client(step.provider_code, self.config, quality_level)
                 
                 # Attempt to send request
                 response = client.generate_response(request)
@@ -313,8 +313,8 @@ class DiscussionOrchestrator:
                     )
                 
                 # Use error recovery system
-                def client_factory(provider_name):
-                    return self.provider_registry.create_client(provider_name, self.config, quality_level)
+                def client_factory(provider_code):
+                    return self.provider_registry.create_client(provider_code, self.config, quality_level)
                 
                 recovery_result = self.error_recovery.handle_error(
                     e, context, client_factory, request
