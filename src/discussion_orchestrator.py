@@ -11,6 +11,7 @@ from .error_handler import ErrorRecovery, ErrorReporter, ErrorContext, error_han
 from .model_manager import model_manager
 from .logging_system import logging_manager, DiscussionLogger
 from .context_monitor import ContextMonitor, ContextWarningLevel
+from .context_manager import ContextManager
 
 
 @dataclass
@@ -36,6 +37,7 @@ class DiscussionOrchestrator:
         self.error_recovery = ErrorRecovery(config, model_manager)
         self.error_reporter = ErrorReporter()
         self.context_monitor = ContextMonitor()
+        self.context_manager = ContextManager(config, self.context_monitor)
         
         # Setup discussion logging
         self.enable_logging = enable_logging
@@ -110,7 +112,46 @@ class DiscussionOrchestrator:
                     max_tokens=2000
                 )
                 
-                # Check context usage before request
+                # Check if context summarization is needed
+                should_summarize = self.context_manager.should_summarize_for_provider(
+                    step.provider_name, model, request
+                )
+                
+                if should_summarize and len(response_contexts) >= self.context_manager.min_responses_to_summarize:
+                    print(f"  🔄 Context approaching limits, summarizing previous responses...")
+                    
+                    def client_factory(provider_name):
+                        return self.provider_registry.create_client(provider_name, self.config, quality_level)
+                    
+                    # Perform summarization
+                    updated_contexts, summary_result = self.context_manager.summarize_conversation_context(
+                        response_contexts, prompt, client_factory, attribution
+                    )
+                    
+                    if summary_result.success:
+                        print(f"  ✓ Summarized {len(response_contexts)} responses into {summary_result.summarized_tokens} tokens "
+                              f"(saved {summary_result.original_tokens - summary_result.summarized_tokens} tokens)")
+                        response_contexts = updated_contexts
+                        
+                        # Reset context monitor for this provider after summarization
+                        self.context_monitor.reset_provider_context(step.provider_name)
+                        
+                        # Rebuild user prompt with summarized context
+                        user_prompt = self.prompt_builder.build_user_prompt(
+                            prompt, response_contexts, step_info, attribution
+                        )
+                        
+                        # Update the request with new prompt
+                        request = LLMRequest(
+                            prompt=user_prompt,
+                            system_prompt=system_prompt,
+                            temperature=0.7,
+                            max_tokens=2000
+                        )
+                    else:
+                        print(f"  ⚠️ Summarization failed: {summary_result.error_message}")
+                
+                # Check context usage after potential summarization
                 can_proceed, usage_info, warning_msg = self.context_monitor.check_context_before_request(
                     step.provider_name, model, request
                 )

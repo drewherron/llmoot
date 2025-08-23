@@ -93,9 +93,18 @@ summarization:
   # Using a cheaper model since summarization is simpler than original thinking
   model: "gpt-3.5-turbo"
   
-  # Token threshold to trigger summarization (per provider's context limit)
-  # This is a percentage - 0.8 means summarize when 80% of context is used
-  trigger_threshold: 0.8
+  # Context usage threshold to trigger summarization (as percentage)
+  # 0.75 = summarize when 75% of context limit is reached
+  threshold: 0.75
+  
+  # Maximum tokens for summary output
+  max_tokens: 1000
+  
+  # Minimum number of responses required before summarization
+  min_responses: 3
+  
+  # Number of recent responses to preserve (not summarize)
+  preserve_recent: 2
   
   # Prompt for summarization
   prompt: |
