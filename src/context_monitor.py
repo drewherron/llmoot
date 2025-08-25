@@ -97,22 +97,14 @@ class TokenEstimator:
 class ContextMonitor:
     """Monitors context usage and provides warnings."""
     
-    def __init__(self):
-        """Initialize context monitor."""
+    def __init__(self, config=None):
+        """Initialize context monitor.
+        
+        Args:
+            config: Optional Config object for reading context limits from model catalog
+        """
         self.token_estimator = TokenEstimator()
-        self.provider_limits = {
-            # Context limits for different models (in tokens)
-            'claude-3-opus-20240229': 200000,
-            'claude-3-sonnet-20240229': 200000,
-            'claude-3-haiku-20240307': 200000,
-            'gpt-4': 8192,
-            'gpt-4-32k': 32768,
-            'gpt-4-turbo-preview': 128000,
-            'gpt-3.5-turbo': 4096,
-            'gpt-3.5-turbo-16k': 16384,
-            'gemini-pro': 32768,
-            'gemini-pro-vision': 16384
-        }
+        self.config = config
         
         # Warning thresholds (as percentage of context limit)
         self.warning_thresholds = {
@@ -127,8 +119,25 @@ class ContextMonitor:
         self.total_conversation_tokens = 0
     
     def get_context_limit(self, model: str) -> int:
-        """Get context limit for a model."""
-        return self.provider_limits.get(model, 8192)  # Conservative default
+        """Get context limit for a model from the config's model_catalog.
+        
+        Args:
+            model: Model name to look up (e.g., 'gpt-4o')
+            
+        Returns:
+            Context limit in tokens, or a conservative default if not found.
+        """
+        if self.config:
+            # Construct the key for the model_catalog
+            catalog_key = f'model_catalog.{model}.context_limit'
+            limit = self.config.get(catalog_key)
+            if limit:
+                return int(limit)
+        
+        # Log a warning if the model is not found in the catalog
+        print(f"Warning: Model '{model}' not found in config's model_catalog. "
+              f"Using conservative default context limit of 8192.")
+        return 8192  # Conservative default
     
     def _get_warning_level(self, usage_percentage: float) -> ContextWarningLevel:
         """Determine warning level based on usage percentage."""

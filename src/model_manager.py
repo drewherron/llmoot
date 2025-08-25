@@ -18,9 +18,16 @@ class ModelInfo:
 class ModelManager:
     """Manages model selection and fallback logic."""
     
-    def __init__(self):
-        """Initialize the model manager."""
-        self.model_catalog = {
+    def __init__(self, config=None):
+        """Initialize the model manager.
+        
+        Args:
+            config: Optional Config object for reading model catalog
+        """
+        self.config = config
+        
+        # Fallback model catalog if config is not available
+        self.fallback_catalog = {
             'claude': {
                 1: [  # Quality level 1 (highest)
                     ModelInfo('claude-3-opus-20240229', 'claude', 1, 200000, 'Claude 3 Opus - Most capable model'),
@@ -33,8 +40,9 @@ class ModelManager:
             },
             'openai': {
                 1: [  # Quality level 1 (highest)
-                    ModelInfo('gpt-4', 'openai', 1, 8192, 'GPT-4 - Most capable OpenAI model'),
+                    ModelInfo('gpt-4', 'openai', 1, 128000, 'GPT-4 - Most capable OpenAI model with large context'),
                     ModelInfo('gpt-4-turbo-preview', 'openai', 1, 128000, 'GPT-4 Turbo - Large context window'),
+                    ModelInfo('gpt-4o', 'openai', 1, 128000, 'GPT-4o - Latest OpenAI model'),
                 ],
                 2: [  # Quality level 2 (mid-tier)
                     ModelInfo('gpt-3.5-turbo', 'openai', 2, 4096, 'GPT-3.5 Turbo - Fast and cost-effective'),
@@ -43,13 +51,57 @@ class ModelManager:
             },
             'gemini': {
                 1: [  # Quality level 1 (highest)
-                    ModelInfo('gemini-pro', 'gemini', 1, 30720, 'Gemini Pro - Google\'s most capable model'),
+                    ModelInfo('gemini-2.5-pro', 'gemini', 1, 1000000, 'Gemini 2.5 Pro - Google\'s latest and most capable model'),
+                    ModelInfo('gemini-1.5-pro', 'gemini', 1, 1000000, 'Gemini 1.5 Pro - Large context window'),
+                    ModelInfo('gemini-pro', 'gemini', 1, 30720, 'Gemini Pro - Standard model'),
                 ],
                 2: [  # Quality level 2 (mid-tier)
-                    ModelInfo('gemini-pro', 'gemini', 2, 30720, 'Gemini Pro - Same model, different usage tier'),
+                    ModelInfo('gemini-1.5-pro', 'gemini', 2, 1000000, 'Gemini 1.5 Pro - Balanced performance with large context'),
+                    ModelInfo('gemini-pro', 'gemini', 2, 30720, 'Gemini Pro - Fast and reliable'),
                 ]
             }
         }
+    
+    def _get_model_catalog(self):
+        """Get model catalog from config or fallback."""
+        if self.config:
+            catalog_data = self.config.get('model_catalog')
+            if catalog_data:
+                return self._convert_config_catalog(catalog_data)
+        
+        # Fall back to hardcoded catalog
+        return self.fallback_catalog
+    
+    def _convert_config_catalog(self, config_catalog):
+        """Convert config model catalog to ModelInfo format.
+        
+        Args:
+            config_catalog: Raw catalog from config
+            
+        Returns:
+            Converted catalog with ModelInfo objects
+        """
+        converted = {}
+        
+        for provider, provider_data in config_catalog.items():
+            converted[provider] = {}
+            
+            for quality_level, models in provider_data.items():
+                quality_int = int(quality_level.replace('quality_', ''))
+                converted[provider][quality_int] = []
+                
+                for model_data in models:
+                    model_info = ModelInfo(
+                        name=model_data.get('model', ''),
+                        provider=provider,
+                        quality_level=quality_int,
+                        context_limit=model_data.get('context_limit', 8192),
+                        description=model_data.get('description', ''),
+                        is_available=model_data.get('is_available', True)
+                    )
+                    converted[provider][quality_int].append(model_info)
+        
+        return converted
     
     def get_model(self, provider: str, quality_level: int, preferred_model: Optional[str] = None) -> str:
         """Get the best available model for provider and quality level.
@@ -65,13 +117,15 @@ class ModelManager:
         Raises:
             ValueError: If no models available for provider/quality
         """
-        if provider not in self.model_catalog:
+        model_catalog = self._get_model_catalog()
+        
+        if provider not in model_catalog:
             raise ValueError(f"Unknown provider: {provider}")
         
-        if quality_level not in self.model_catalog[provider]:
+        if quality_level not in model_catalog[provider]:
             raise ValueError(f"Quality level {quality_level} not available for {provider}")
         
-        models = self.model_catalog[provider][quality_level]
+        models = model_catalog[provider][quality_level]
         available_models = [m for m in models if m.is_available]
         
         if not available_models:
@@ -88,5 +142,5 @@ class ModelManager:
     
 
 
-# Global model manager instance
+# Global model manager instance (for backwards compatibility)
 model_manager = ModelManager()

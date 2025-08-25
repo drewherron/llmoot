@@ -54,9 +54,11 @@ class OpenAIClient(LLMClient):
         # Build request payload
         payload = {
             "model": self.model,
-            "messages": messages,
-            "max_tokens": request.max_tokens or 1000
+            "messages": messages
         }
+
+        if request.max_tokens:
+            payload["max_tokens"] = request.max_tokens
         
         if request.temperature is not None:
             payload["temperature"] = request.temperature

@@ -36,7 +36,7 @@ class DiscussionOrchestrator:
         self.prompt_builder = PromptBuilder(config)
         self.error_recovery = ErrorRecovery(config, model_manager)
         self.error_reporter = ErrorReporter()
-        self.context_monitor = ContextMonitor()
+        self.context_monitor = ContextMonitor(config)
         self.context_manager = ContextManager(config, self.context_monitor)
         
         # Setup discussion logging
@@ -109,7 +109,7 @@ class DiscussionOrchestrator:
                     prompt=user_prompt,
                     system_prompt=system_prompt,
                     temperature=0.7,
-                    max_tokens=2000
+                    max_tokens=None
                 )
                 
                 # Check if context summarization is needed

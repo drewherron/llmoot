@@ -132,19 +132,6 @@ class ClaudeClient(LLMClient):
         except (KeyError, TypeError) as e:
             raise APIError(f"Failed to parse Claude response: {str(e)}")
     
-    def get_context_limit(self) -> int:
-        """Get context limit for Claude models."""
-        # Claude 3 models have different context limits
-        if "opus" in self.model.lower():
-            return 200000
-        elif "sonnet" in self.model.lower():
-            return 200000
-        elif "haiku" in self.model.lower():
-            return 200000
-        else:
-            # Default for unknown models
-            return 100000
-    
     def estimate_tokens(self, text: str) -> int:
         """Estimate tokens for Claude (roughly 3.5 chars per token)."""
         return len(text) // 4

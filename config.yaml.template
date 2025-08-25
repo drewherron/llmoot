@@ -2,122 +2,76 @@
 # Copy this to config.yaml and customize as needed
 
 # API Keys - Set these or use environment variables
-# Environment variables take precedence if both are set
+# Environment variables are checked first.
 api_keys:
-  # Anthropic Claude API key
-  # Get from: https://console.anthropic.com/
   anthropic: ${ANTHROPIC_API_KEY}
-  
-  # OpenAI API key  
-  # Get from: https://platform.openai.com/api-keys
   openai: ${OPENAI_API_KEY}
-  
-  # Google Gemini API key
-  # Get from: https://makersuite.google.com/app/apikey
   google: ${GOOGLE_API_KEY}
 
-# Model Selection by Quality Level
-# These settings override the built-in model catalog
-# If not specified, the system will use intelligent defaults
-models:
-  quality_1:  # Highest quality models
-    claude: claude-3-opus-20240229     # Most capable Claude model
-    openai: gpt-4                      # Most capable OpenAI model  
-    gemini: gemini-pro                 # Google's most capable model
-    
-  quality_2:  # Mid-tier models (faster, more cost-effective)
-    claude: claude-3-sonnet-20240229   # Balanced Claude model
-    openai: gpt-3.5-turbo              # Fast and cost-effective
-    gemini: gemini-pro                 # Same model, different usage pattern
+# Model & Provider Settings
+# -------------------------
+# This section allows you to define models, their properties (like context limits),
+# and which model to use for different quality levels. This makes it easy to
+# add new models or change defaults without editing the application code.
 
-# Alternative models available (uncomment to override defaults):
-# models:
-#   quality_1:
-#     claude: claude-3-sonnet-20240229  # Use Sonnet instead of Opus for quality 1
-#     openai: gpt-4-turbo-preview       # Use Turbo for larger context window
-#   quality_2:
-#     claude: claude-3-haiku-20240307   # Use Haiku for faster responses
-#     openai: gpt-3.5-turbo-16k         # Use 16k version for larger context
+# 1. Model Catalog
+# Define all known models and their specific properties here.
+# The most important property is `context_limit`.
+model_catalog:
+  # OpenAI Models
+  'gpt-4o': { context_limit: 128000 }
+  'gpt-4-turbo': { context_limit: 128000 }
+  'gpt-4-32k': { context_limit: 32768 }
+  'gpt-4': { context_limit: 8192 }
+  'gpt-3.5-turbo-16k': { context_limit: 16384 }
+  'gpt-3.5-turbo': { context_limit: 4096 }
+
+  # Google Models
+  'gemini-2.5-pro': { context_limit: 1000000 }
+  'gemini-1.5-pro': { context_limit: 1000000 }
+  'gemini-pro': { context_limit: 32768 }
+
+  # Anthropic Models
+  'claude-3-opus-20240229': { context_limit: 200000 }
+  'claude-3-sonnet-20240229': { context_limit: 200000 }
+  'claude-3-haiku-20240307': { context_limit: 200000 }
+
+# 2. Model Selection by Quality
+# Map providers to a specific model from the catalog for each quality level.
+# Quality levels are arbitrary integers. You can define as many as you like.
+# The --quality-level CLI flag will use the integer you specify here.
+models:
+  1:  # Corresponds to --quality-level 1
+    claude: 'claude-3-opus-20240229'
+    openai: 'gpt-4o'
+    gemini: 'gemini-2.5-pro'
+
+  2:  # Corresponds to --quality-level 2
+    claude: 'claude-3-sonnet-20240229'
+    openai: 'gpt-3.5-turbo-16k'
+    gemini: 'gemini-1.5-pro'
+  
+  3: # Example of a third, even faster/cheaper level
+    claude: 'claude-3-haiku-20240307'
+    openai: 'gpt-3.5-turbo'
+    gemini: 'gemini-pro'
 
 # System Prompts - Customize how LLMs are instructed
 system_prompts:
-  # Prompt for intermediate LLMs (not the final one)
   intermediate: |
     You are participating in a collaborative roundtable discussion with other AI assistants.
-    You will see the original user question and any previous responses from other AIs.
-    
-    Your role:
-    - Provide thoughtful insights that complement previous responses
-    - Add new perspectives or information not yet covered
-    - Build upon good points made by others
-    - Note any disagreements or corrections respectfully
-    - Focus on content and ideas, not final formatting
-    
-    You are NOT the final responder, so focus on contributing to the discussion
-    rather than providing a complete final answer.
-  
-  # Prompt for the final LLM in the sequence  
+    Your role is to provide thoughtful insights that complement previous responses, add new perspectives,
+    and build upon good points made by others. Focus on content and ideas, not final formatting.
   final: |
     You are the final participant in a collaborative roundtable discussion.
-    You will see the original user question and responses from other AI assistants.
-    
-    Your role:
-    - Synthesize the best insights from all previous responses
-    - Create a comprehensive final answer
-    - Resolve any conflicting viewpoints if possible
-    - Apply any formatting requested by the user
-    - Provide the definitive response to the user's question
-    
-    This is the final response the user will see, so make it complete and well-formatted.
+    Your role is to synthesize the best insights from all previous responses into a comprehensive
+    final answer. Apply any formatting requested by the user.
 
 # Default Settings
 defaults:
   quality_level: 1
-  
+
 # Logging Settings
 logging:
-  # Enable/disable logging to files
   enabled: true
-  
-  # Directory where log files will be stored
-  # Relative paths are relative to the llmoot working directory
   directory: "logs"
-  
-  # Console logging is still controlled by --console-logging CLI flag
-  # as it's typically used for debugging/development
-  
-# Summarization Settings
-summarization:
-  # Model to use for summarizing when approaching context limits
-  # Using a cheaper model since summarization is simpler than original thinking
-  model: "gpt-3.5-turbo"
-  
-  # Context usage threshold to trigger summarization (as percentage)
-  # 0.75 = summarize when 75% of context limit is reached
-  threshold: 0.75
-  
-  # Maximum tokens for summary output
-  max_tokens: 1000
-  
-  # Minimum number of responses required before summarization
-  min_responses: 3
-  
-  # Number of recent responses to preserve (not summarize)
-  preserve_recent: 2
-  
-  # Prompt for summarization
-  prompt: |
-    Please summarize the following AI discussion responses, preserving the key insights
-    and arguments while removing redundancy. Keep the essential points that would be
-    important for the next AI to consider:
-
-# Logging Settings  
-logging:
-  # Enable logging to timestamped files
-  enabled: true
-  
-  # Log level: DEBUG, INFO, WARNING, ERROR
-  level: INFO
-  
-  # Include API request/response details (disable for privacy)
-  include_api_details: true

@@ -165,23 +165,15 @@ class GeminiClient(LLMClient):
         except (KeyError, TypeError) as e:
             raise APIError(f"Failed to parse Gemini response: {str(e)}")
     
-    def get_context_limit(self) -> int:
-        """Get context limit for Gemini models."""
-        if "pro" in self.model.lower():
-            # Gemini Pro has a large context window
-            return 30720  # ~30K tokens
-        else:
-            # Default for unknown models
-            return 8192
-    
     def estimate_tokens(self, text: str) -> int:
         """Estimate tokens for Gemini (roughly 4 chars per token)."""
         return len(text) // 4
     
     def _validate_request_specific(self, request: LLMRequest) -> None:
         """Gemini-specific request validation."""
-        if request.max_tokens and request.max_tokens > 8192:
-            raise ValueError("Gemini max_tokens cannot exceed 8192")
+        # Loosened this restriction to allow for larger outputs from models like Gemini 1.5 Pro
+        if request.max_tokens and request.max_tokens > 1_000_000:
+            raise ValueError("Gemini max_tokens cannot exceed 1,000,000")
         
         if request.temperature and (request.temperature < 0 or request.temperature > 1):
             raise ValueError("Gemini temperature must be between 0 and 1")

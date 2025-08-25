@@ -48,15 +48,21 @@ Order codes:
     parser.add_argument(
         "--quality",
         type=int,
-        choices=[1, 2],
         default=1,
-        help="Quality level: 1=highest models, 2=mid-tier models (default: 1)"
+        help="Quality level integer defined in config.yaml (default: 1)"
     )
 
     parser.add_argument(
         "--attribution",
         action="store_true",
         help="Include model names in context and enable attribution in final response"
+    )
+
+    parser.add_argument(
+        "--attach",
+        action="append",
+        metavar="FILE",
+        help="Attach file contents to the prompt (can be used multiple times)"
     )
 
     parser.add_argument(
@@ -132,6 +138,40 @@ def load_prompt(prompt_arg):
     
     return prompt_arg.strip()
 
+
+def load_attachments(attach_files):
+    """Load and format attached file contents.
+    
+    Args:
+        attach_files: List of file paths to attach (can be None)
+        
+    Returns:
+        Formatted string with all attached file contents
+        
+    Raises:
+        ValueError: If any file doesn't exist or can't be read
+    """
+    if not attach_files:
+        return ""
+    
+    attachments = []
+    for file_path in attach_files:
+        if not os.path.isfile(file_path):
+            raise ValueError(f"Attachment file not found: {file_path}")
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if not content:
+                    raise ValueError(f"Attachment file is empty: {file_path}")
+                
+                # Format the attachment with a clear header
+                attachment = f"\n--- File: {file_path} ---\n{content}\n--- End of {file_path} ---\n"
+                attachments.append(attachment)
+        except (IOError, UnicodeDecodeError) as e:
+            raise ValueError(f"Error reading attachment file '{file_path}': {e}")
+    
+    return "\n".join(attachments)
 
 
 def run_mock_discussion_with_result(order, prompt, config, quality_level, attribution=False):
@@ -217,6 +257,11 @@ def main():
         # Load prompt (from file or direct text)
         prompt = load_prompt(args.prompt)
         
+        # Load attachments and combine with prompt
+        attachments = load_attachments(args.attach)
+        if attachments:
+            prompt = prompt + attachments
+        
         # Load configuration
         try:
             config = Config()
@@ -228,11 +273,14 @@ def main():
         if DEV_MODE:
             print("WARNING: Running in DEVELOPMENT MODE with mock responses")
         
-        # Show prompt source
+        # Show prompt source and attachments
         if os.path.isfile(args.prompt):
             print(f"Prompt file: {args.prompt}")
         else:
-            print(f"Prompt: {prompt}")
+            print(f"Prompt: {prompt if not attachments else args.prompt}")
+        
+        if args.attach:
+            print(f"Attachments: {', '.join(args.attach)}")
         
         # Show detailed order information
         order_analysis = order_parser.analyze_order(order)
