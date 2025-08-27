@@ -4,23 +4,30 @@ import os
 import re
 import yaml
 from typing import Dict, Any, Optional
+from .config_validator import ConfigValidator, ValidationSeverity
 
 
 class Config:
     """Configuration manager for llmoot."""
 
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config_path: str = "config.yaml", validate: bool = True):
         """Initialize configuration.
 
         Args:
             config_path: Path to config file (defaults to config.yaml)
+            validate: Whether to validate config (default True)
         """
         self.config_path = config_path
         self._config = {}
-        self.load()
+        self.validation_warnings = []
+        self.load(validate)
 
-    def load(self):
-        """Load configuration from file with environment variable fallback."""
+    def load(self, validate: bool = True):
+        """Load configuration from file with environment variable fallback.
+        
+        Args:
+            validate: Whether to validate the configuration
+        """
         # Try to load config file
         if os.path.exists(self.config_path):
             try:
@@ -37,6 +44,10 @@ class Config:
 
         # Ensure required structure exists
         self._ensure_structure()
+        
+        # Validate configuration if requested
+        if validate:
+            self._validate_configuration()
 
     def _substitute_env_vars(self, content: str) -> str:
         """Replace ${ENV_VAR} placeholders with environment variable values."""
@@ -192,3 +203,37 @@ final answer. Apply any formatting requested by the user."""
     def get_log_directory(self) -> str:
         """Get the log directory path."""
         return self.get('logging.directory', 'logs')
+    
+    def _validate_configuration(self):
+        """Validate configuration and handle issues."""
+        validator = ConfigValidator()
+        result = validator.validate_config_file(self.config_path)
+        
+        # Store warnings for later display
+        self.validation_warnings = [
+            issue for issue in result.issues 
+            if issue.severity == ValidationSeverity.WARNING
+        ]
+        
+        # Handle errors - these prevent the program from running
+        if not result.is_valid:
+            error_report = validator.format_validation_report(result, verbose=True)
+            raise ValueError(f"Configuration validation failed:\n\n{error_report}")
+    
+    def has_validation_warnings(self) -> bool:
+        """Check if there were validation warnings."""
+        return len(self.validation_warnings) > 0
+    
+    def get_validation_warnings(self) -> str:
+        """Get formatted validation warnings."""
+        if not self.validation_warnings:
+            return ""
+        
+        warnings = []
+        warnings.append("⚠️ Configuration Warnings:")
+        for warning in self.validation_warnings:
+            warnings.append(f"  • {warning.message}")
+            if warning.suggestion:
+                warnings.append(f"    Fix: {warning.suggestion}")
+        
+        return "\n".join(warnings)

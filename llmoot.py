@@ -273,6 +273,11 @@ def main():
         if DEV_MODE:
             print("WARNING: Running in DEVELOPMENT MODE with mock responses")
         
+        # Show validation warnings if any
+        if config.has_validation_warnings():
+            print(config.get_validation_warnings())
+            print()
+        
         # Show prompt source and attachments
         if os.path.isfile(args.prompt):
             print(f"Prompt file: {args.prompt}")
